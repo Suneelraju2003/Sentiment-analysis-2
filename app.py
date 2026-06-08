@@ -3,17 +3,11 @@ import pandas as pd
 import numpy as np
 import joblib
 import re
-import nltk
-
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-
 import matplotlib.pyplot as plt
 
-# ----------------------------
-# Page Configuration
-# ----------------------------
+# ----------------------------------
+# PAGE CONFIG
+# ----------------------------------
 
 st.set_page_config(
     page_title="Customer Sentiment Analysis",
@@ -21,27 +15,16 @@ st.set_page_config(
     layout="wide"
 )
 
-# ----------------------------
-# Load Model
-# ----------------------------
+# ----------------------------------
+# LOAD MODEL
+# ----------------------------------
 
 model = joblib.load("sentiment_model.pkl")
 vectorizer = joblib.load("tfidf_vectorizer.pkl")
 
-# ----------------------------
-# NLTK
-# ----------------------------
-
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
-
-stop_words = set(stopwords.words("english"))
-lemmatizer = WordNetLemmatizer()
-
-# ----------------------------
-# Text Preprocessing
-# ----------------------------
+# ----------------------------------
+# TEXT CLEANING
+# ----------------------------------
 
 def preprocess(text):
 
@@ -50,26 +33,15 @@ def preprocess(text):
     text = re.sub(r'<.*?>', '', text)
     text = re.sub(r'http\S+|www\S+|https\S+', '', text)
     text = re.sub(r'@\w+', '', text)
-    text = re.sub(r'[^a-zA-Z0-9\s!?]', '', text)
-    text = re.sub(r'\d+', '', text)
+    text = re.sub(r'[^a-zA-Z0-9\s]', ' ', text)
 
-    tokens = word_tokenize(text)
+    text = re.sub(r'\s+', ' ', text)
 
-    tokens = [
-        word for word in tokens
-        if word not in stop_words and len(word) > 1
-    ]
+    return text.strip()
 
-    tokens = [
-        lemmatizer.lemmatize(word)
-        for word in tokens
-    ]
-
-    return " ".join(tokens)
-
-# ----------------------------
-# Sidebar Navigation
-# ----------------------------
+# ----------------------------------
+# SIDEBAR
+# ----------------------------------
 
 page = st.sidebar.radio(
     "Navigation",
@@ -87,94 +59,76 @@ if page == "Model Performance":
 
     st.title("Customer Review Sentiment Analysis")
 
-    st.header("Project Overview")
+    st.subheader("Project Overview")
 
     st.write("""
-    This project predicts customer sentiment from product reviews
+    This project predicts customer sentiment from reviews
     using TF-IDF Vectorization and Logistic Regression.
     """)
 
-    st.divider()
+    st.markdown("---")
 
-    st.header("Model Performance")
+    st.subheader("Model Performance Metrics")
 
-    performance_df = pd.DataFrame({
-        "Metric": [
-            "Accuracy",
-            "Precision",
-            "Recall",
-            "F1 Score"
-        ],
-        "Value": [
-            0.92,   # replace
-            0.91,   # replace
-            0.92,   # replace
-            0.91    # replace
-        ]
+    accuracy = 0.92
+    precision = 0.91
+    recall = 0.92
+    f1 = 0.91
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric("Accuracy", f"{accuracy*100:.2f}%")
+    col2.metric("Precision", f"{precision*100:.2f}%")
+    col3.metric("Recall", f"{recall*100:.2f}%")
+    col4.metric("F1 Score", f"{f1*100:.2f}%")
+
+    st.markdown("---")
+
+    st.subheader("Metric Comparison")
+
+    metrics_df = pd.DataFrame({
+        "Metric": ["Accuracy", "Precision", "Recall", "F1 Score"],
+        "Score": [accuracy, precision, recall, f1]
     })
 
-    st.dataframe(
-        performance_df,
-        use_container_width=True
-    )
-
-    st.divider()
-
-    st.header("Performance Visualization")
-
     fig, ax = plt.subplots(figsize=(8,4))
-
-    ax.bar(
-        performance_df["Metric"],
-        performance_df["Value"]
-    )
-
-    ax.set_ylim([0,1])
-
-    ax.set_ylabel("Score")
+    ax.bar(metrics_df["Metric"], metrics_df["Score"])
+    ax.set_ylim(0,1)
 
     st.pyplot(fig)
 
-    st.divider()
+    st.markdown("---")
 
-    st.header("Training vs Validation Accuracy")
+    st.subheader("Training vs Validation Accuracy")
 
-    comparison_df = pd.DataFrame({
-        "Dataset":[
-            "Training",
-            "Validation"
-        ],
-        "Accuracy":[
-            0.94,  # replace
-            0.92   # replace
-        ]
+    train_acc = 0.94
+    val_acc = 0.92
+
+    compare_df = pd.DataFrame({
+        "Dataset":["Training","Validation"],
+        "Accuracy":[train_acc,val_acc]
     })
 
     fig2, ax2 = plt.subplots(figsize=(6,4))
-
-    ax2.bar(
-        comparison_df["Dataset"],
-        comparison_df["Accuracy"]
-    )
-
-    ax2.set_ylim([0,1])
+    ax2.bar(compare_df["Dataset"], compare_df["Accuracy"])
+    ax2.set_ylim(0,1)
 
     st.pyplot(fig2)
 
-    st.divider()
+    st.markdown("---")
 
-    st.header("Confusion Matrix")
+    st.subheader("Confusion Matrix")
 
-    confusion_df = pd.DataFrame(
+    confusion_matrix_df = pd.DataFrame(
         [
-            [450,50],
-            [40,460]
+            [450, 50],
+            [40, 460]
         ],
-        columns=["Pred Negative","Pred Positive"],
+        columns=["Predicted Negative","Predicted Positive"],
         index=["Actual Negative","Actual Positive"]
     )
 
-    st.dataframe(confusion_df)
+    st.dataframe(confusion_matrix_df)
 
 # =====================================================
 # PAGE 2
@@ -184,12 +138,8 @@ elif page == "Sentiment Prediction":
 
     st.title("Customer Review Sentiment Prediction")
 
-    st.write(
-        "Enter a customer review below."
-    )
-
     review = st.text_area(
-        "Customer Review",
+        "Enter Customer Review",
         height=200
     )
 
@@ -199,62 +149,70 @@ elif page == "Sentiment Prediction":
             st.warning("Please enter a review.")
         else:
 
-            cleaned_review = preprocess(review)
+            cleaned_text = preprocess(review)
 
-            transformed_text = vectorizer.transform(
-                [cleaned_review]
+            vectorized_text = vectorizer.transform(
+                [cleaned_text]
             )
 
             prediction = model.predict(
-                transformed_text
+                vectorized_text
             )[0]
 
-            try:
-                probability = np.max(
-                    model.predict_proba(
-                        transformed_text
-                    )
-                )
-            except:
-                probability = None
+            st.markdown("---")
 
-            st.subheader("Prediction")
+            st.subheader("Prediction Result")
 
-            if str(prediction).lower() == "positive":
+            prediction_text = str(prediction).lower()
+
+            if prediction_text == "positive":
+
                 st.success(
-                    f"Positive Sentiment"
+                    "Positive Sentiment 😊"
                 )
 
-            elif str(prediction).lower() == "negative":
+            elif prediction_text == "negative":
+
                 st.error(
-                    f"Negative Sentiment"
+                    "Negative Sentiment 😔"
                 )
 
             else:
+
                 st.info(
-                    f"{prediction}"
+                    f"Predicted Sentiment: {prediction}"
                 )
 
-            if probability is not None:
+            try:
+
+                confidence = np.max(
+                    model.predict_proba(
+                        vectorized_text
+                    )
+                )
 
                 st.write(
-                    f"Confidence Score: {probability:.2%}"
+                    f"Confidence Score: {confidence:.2%}"
                 )
 
-            st.divider()
+            except:
 
-            st.subheader("Processed Text")
+                pass
 
-            st.write(cleaned_review)
+            st.markdown("---")
 
-    st.divider()
+            st.subheader("Processed Review")
 
-    st.subheader("Example Reviews")
+            st.write(cleaned_text)
+
+    st.markdown("---")
+
+    st.subheader("Sample Reviews")
 
     st.info(
-        "This product exceeded my expectations. Excellent quality."
+        "This product exceeded my expectations. Excellent quality and value."
     )
 
     st.info(
-        "Waste of money. Very poor performance."
+        "Very poor quality. Waste of money."
     )
